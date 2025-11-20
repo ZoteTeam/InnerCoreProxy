@@ -1,0 +1,7 @@
+# default for server.properties
+# ip: localhost
+port: 19134
+token: test
+
+timeout: 1000
+period: 100

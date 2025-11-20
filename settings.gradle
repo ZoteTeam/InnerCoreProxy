@@ -1,0 +1,5 @@
+rootProject.name = 'InnerCoreProxy'
+
+include 'common'
+include 'waterzote'
+include 'zotecore'

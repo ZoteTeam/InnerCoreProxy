@@ -1,0 +1,4 @@
+name: "InnerCoreProxy"
+main: "com.reider745.proxy.waterzote.InnerCoreProxy"
+version: "1.0"
+author: "Reider745"

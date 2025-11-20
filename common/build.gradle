@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.reider745'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly('org.projectlombok:lombok:1.18.42')
+    annotationProcessor('org.projectlombok:lombok:1.18.42')
+
+    compileOnly("org.jetbrains:annotations:26.0.2-1")
+    annotationProcessor("org.jetbrains:annotations:26.0.2-1")
+
+    implementation("fastutil:fastutil:5.0.9")
+}

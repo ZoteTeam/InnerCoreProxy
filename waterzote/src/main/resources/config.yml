@@ -1,0 +1,4 @@
+lobby1:
+  ip: localhost
+  port: 19134
+  token: test
