@@ -43,7 +43,8 @@ public class InnerCoreProxy extends PluginBase {
             final InnerCoreProxyServer server = new InnerCoreProxyServer(
                     Side.SERVER,
                     InetAddress.getByName(config.exists("ip") ? Server.getInstance().getIp() : config.getString("ip")),
-                    config.getInt("port")
+                    config.getInt("port"),
+                    this.getServer().getLogger()::info
             );
 
             server.setServerName(Server.getInstance().getName());
@@ -78,8 +79,6 @@ public class InnerCoreProxy extends PluginBase {
                     final Long uid = connectedPlayers.remove(username);
 
                     if(uid != null) {
-                        client.playerUid = uid;
-
                         ConnectedClient.OnStateChangedListener originalStateChanged = ReflectHelper.getField(client, "stateChangedListener");
                         client.setStateChangedListener(((client1, newState) -> {
                             if(newState == ConnectedClient.ClientState.INITIALIZING) {
@@ -101,7 +100,8 @@ public class InnerCoreProxy extends PluginBase {
                 if(packet instanceof RequestPacket) {
                     connection.sendPacket(response);
                 } else if(packet instanceof ConnectPlayerPacket connectPlayerPacket) {
-                    connectedPlayers.put(connectPlayerPacket.getUsername(), connectPlayerPacket.getUid());
+                    this.getServer().getLogger().info("Connection for WaterZote - " + connectPlayerPacket.getUsername());
+                    connectedPlayers.put(connectPlayerPacket.getUsername(), 0L);
                 }
             }));
             new Thread(() -> {

@@ -1,16 +1,16 @@
 package com.reider745.proxy.waterzote.listener;
 
-import com.reider745.proxy.packet.impl.ConnectPlayerPacket;
 import com.reider745.proxy.waterzote.InnerCoreProxy;
 import com.reider745.proxy.waterzote.network.InnerCoreSession;
-import com.reider745.proxy.waterzote.util.NetworkUtil;
 import dev.waterdog.waterdogpe.event.defaults.*;
 import dev.waterdog.waterdogpe.player.ProxiedPlayer;
+import lombok.Getter;
 import org.cloudburstmc.protocol.bedrock.BedrockSession;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Getter
 public class SessionHandler {
     private final Map<BedrockSession, InnerCoreSession> sessions = new ConcurrentHashMap<>();
 

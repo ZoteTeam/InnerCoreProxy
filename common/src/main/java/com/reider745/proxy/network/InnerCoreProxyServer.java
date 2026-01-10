@@ -14,8 +14,6 @@ import com.reider745.proxy.service.impl.PacketEncoderServiceImpl;
 import com.reider745.proxy.service.impl.RegisterPacketImplService;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.log4j.Log4j;
-import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -25,6 +23,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 @Getter
 public class InnerCoreProxyServer implements Cloneable {
@@ -51,8 +50,9 @@ public class InnerCoreProxyServer implements Cloneable {
     @Setter
     private String serverName = "non";
     private long periodPing = 50;
+    private Consumer<String> log;
 
-    public InnerCoreProxyServer(Side side, InetAddress address, int port) {
+    public InnerCoreProxyServer(Side side, InetAddress address, int port, Consumer<String> log) {
         this.registries = new RegisterPacketImplService();
         this.decoder = new PacketDecoderServiceImpl(registries);
         this.encoder = new PacketEncoderServiceImpl();
@@ -60,6 +60,8 @@ public class InnerCoreProxyServer implements Cloneable {
         this.side = side;
         this.address = address;
         this.port = port;
+
+        this.log = log;
 
         this.addHandler((connection, packet) -> {
             if (packet instanceof PongActiveProxyPacket) {
@@ -127,12 +129,18 @@ public class InnerCoreProxyServer implements Cloneable {
 
                         final Packet g = connection.readPacket();
 
-                        if(g instanceof AuthServerPacket packet && this.token.equals(packet.getToken())) {
-                            connection.setServerName(packet.getServerName());
+                        if(g instanceof AuthServerPacket packet) {
+                            if(this.token.equals(packet.getToken())) {
+                                log.accept("New Connection");
+                                connection.setServerName(packet.getServerName());
 
-                            this.addConnection(connection);
-                            connection.start();
+                                this.addConnection(connection);
+                                connection.start();
+                            } else {
+                                log.accept("Blocked connection invalid token");
+                            }
                         } else {
+                            log.accept("Blocked connection first packet not AuthServerPacket");
                             connection.setActive(false);
                         }
                     }
@@ -150,6 +158,8 @@ public class InnerCoreProxyServer implements Cloneable {
                     try {
                         final Socket socket = new Socket(address, port);
                         connection = new Connection(this, socket);
+
+                        log.accept("Try connected.");
 
                         connection.sendPacket(new AuthServerPacket(serverName, token));
                         connection.start();
@@ -214,7 +224,7 @@ public class InnerCoreProxyServer implements Cloneable {
 
     @Override
     public InnerCoreProxyServer clone() throws CloneNotSupportedException {
-        var copy = new InnerCoreProxyServer(side, address, port);
+        var copy = new InnerCoreProxyServer(side, address, port, log);
         copy.setToken(this.token);
         return copy;
     }

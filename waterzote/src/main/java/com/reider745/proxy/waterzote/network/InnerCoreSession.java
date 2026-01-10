@@ -14,21 +14,28 @@ import lombok.Setter;
 import org.cloudburstmc.protocol.bedrock.BedrockSession;
 import org.cloudburstmc.protocol.bedrock.codec.v422.packet.InnerCorePacket;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 @Getter
 @Setter
 public class InnerCoreSession {
     private static final Gson GSON = new Gson();
 
-    private final Map<String, Consumer<String>> initializations = new HashMap<>();
+    private static final Map<String, BiFunction<InnerCoreSession, String, CompletableFuture<Boolean>>> INITS = new HashMap<>();
+
+    public static void register(String name, BiFunction<InnerCoreSession, String, CompletableFuture<Boolean>> action) {
+        INITS.put(name, action);
+    }
+
+    private final Map<String, Function<String, CompletableFuture<Boolean>>> initializations = new ConcurrentHashMap<>();
     private final BedrockSession session;
     private long lastPing = System.currentTimeMillis();
-    private long playerId;
 
     public InnerCoreSession(BedrockSession session) {
         this.session = session;
@@ -38,44 +45,44 @@ public class InnerCoreSession {
         initializations.put("system.inner_core_build", (data) -> {
             final JsonObject json = GSON.fromJson(data, JsonObject.class);
 
-            if(!info.getVersionName().equals("any") && json.get("versionCode").getAsInt() != info.getVersionCode()) {
+            if (!info.getVersionName().equals("any") && json.get("versionCode").getAsInt() != info.getVersionCode()) {
                 throw new RuntimeException("not support inner core version, please install: " + info.getPackName() + " " + info.getVersionName());
             }
+
+            return CompletableFuture.completedFuture(true);
         });
 
         initializations.put("system.mod_list", (data) -> {
             final JsonArray mods = GSON.fromJson(data, JsonObject.class).get("list").getAsJsonArray();
 
-            if(mods.size() != info.getMods().size()) {
-                throw new RuntimeException("mod list not match");
+            if (mods.size() != info.getMods().size()) {
+                throw new RuntimeException("mod list not match " + mods);
             }
 
-            for(JsonElement modElement : mods) {
+            for (JsonElement modElement : mods) {
                 final JsonObject mod = modElement.getAsJsonObject();
 
-                if(!InnerCoreProxy.getInstance().hasMod(mod.get("name").getAsString(), mod.get("version").getAsString())) {
+                if (!InnerCoreProxy.getInstance().hasMod(mod.get("name").getAsString(), mod.get("version").getAsString())) {
                     throw new RuntimeException("invalid mod: " + mod.get("name").getAsString() + " " + mod.get("version").getAsString());
                 }
             }
+
+            return CompletableFuture.completedFuture(true);
         });
 
-        initializations.put("system.player_entity", (data) -> {
-            try {
-                playerId = Long.parseLong(data);
-            } catch (NumberFormatException ignored) {
-                throw new RuntimeException("invalid player packet data: system.player_entity");
-            }
+        INITS.forEach((name, consumer) -> {
+            initializations.put(name, (data) -> consumer.apply(this, data));
         });
     }
 
     public void onReceive(InnerCorePacket packet) {
-        if(packet.getName().equals("system.native_ping")) {
+        if (packet.getName().equals("system.native_ping")) {
             lastPing = System.currentTimeMillis();
             this.session.sendPacketImmediately(InnerCoreProxy.getInstance().getPong());
             return;
         }
 
-        if(packet.getName().equals("system.request_info")) {
+        if (packet.getName().equals("system.request_info")) {
             try {
                 session.sendPacketImmediately(InnerCoreProxy.getInstance().getServerResponse());
                 session.sendPacketImmediately(InnerCoreProxy.getInstance().getIdMap());
@@ -86,14 +93,22 @@ public class InnerCoreSession {
             return;
         }
 
-        Consumer<String> func = this.initializations.remove(packet.getName());
-        if(func != null) {
+        Function<String, CompletableFuture<Boolean>> func = this.initializations.get(packet.getName());
+        if (func != null) {
             try {
-                func.accept(new String(packet.getBytes(), StandardCharsets.UTF_8));
+                func.apply(new String(packet.getBytes(), StandardCharsets.UTF_8)).thenAccept(result -> {
+                    if (result) {
+                        try {
+                            this.initializations.remove(packet.getName());
 
-                if (this.initializations.isEmpty()) {
-                    this.session.sendPacketImmediately(InnerCoreProxy.getInstance().getClientConnectionAllowed());
-                }
+                            if (this.initializations.isEmpty()) {
+                                this.session.sendPacketImmediately(InnerCoreProxy.getInstance().getClientConnectionAllowed());
+                            }
+                        } catch (Throwable e) {
+                            this.disconnect(e.getMessage());
+                        }
+                    }
+                });
             } catch (Throwable e) {
                 this.disconnect(e.getMessage());
             }
@@ -103,7 +118,11 @@ public class InnerCoreSession {
     }
 
     public void onConnectedServer(ProxiedPlayer player, ServerInfo info) {
-        InnerCoreProxy.getInstance().getServers().get(info.getServerName()).getServerConnection().sendPacket(new ConnectPlayerPacket(player.getName(), playerId));
+        if(!initializations.isEmpty()) {
+            player.disconnect("initializations failed " + initializations.keySet());
+            return;
+        }
+        InnerCoreProxy.getInstance().getServers().get(info.getServerName()).getServerConnection().sendPacket(new ConnectPlayerPacket(player.getName()));
     }
 
     public void disconnect(String reason) {

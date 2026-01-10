@@ -3,12 +3,14 @@ package com.reider745.proxy.packet.impl.technical;
 import com.reider745.proxy.packet.Packet;
 import com.reider745.proxy.packet.PacketType;
 import lombok.Getter;
+import lombok.ToString;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
 @Getter
+@ToString
 public class AuthServerPacket extends Packet {
     private final String serverName;
     private final String token;

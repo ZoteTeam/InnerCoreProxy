@@ -1,9 +1,10 @@
 plugins {
     id 'java'
     id("com.gradleup.shadow") version "9.1.0"
+    id 'maven-publish'
 }
 
-group = 'com.reider745'
+group = 'com.reider745.proxy.waterzote'
 version = '1.0-SNAPSHOT'
 
 repositories {
@@ -41,4 +42,23 @@ dependencies {
 
 tasks.jar {
     archiveFileName.set("${project.name}-${project.version}.jar")
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
+
+    repositories {
+        maven {
+            name = "innerCoreReposiliteReleases"
+            url = uri("https://maven.inner-core.org/releases")
+            credentials {
+                username = findProperty('innercoreUsername')?.toString() ?: System.getenv('MAVEN_USERNAME')
+                password = findProperty('innercorePassword')?.toString() ?: System.getenv('MAVEN_PASSWORD')
+            }
+        }
+    }
 }

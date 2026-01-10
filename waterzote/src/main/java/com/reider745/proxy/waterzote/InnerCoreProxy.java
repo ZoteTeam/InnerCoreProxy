@@ -18,6 +18,7 @@ import org.cloudburstmc.protocol.bedrock.codec.v422.packet.InnerCorePacket;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Getter
 public class InnerCoreProxy extends Plugin {
@@ -65,7 +66,8 @@ public class InnerCoreProxy extends Plugin {
                         InnerCoreProxyServer proxyServer = new InnerCoreProxyServer(
                                 Side.HANDLED,
                                 address,
-                                (int) serverConfig.get("port")
+                                (int) serverConfig.get("port"),
+                                this.getLogger()::info
                         );
                         proxyServer.setToken(serverConfig.get("token").toString());
                         this.servers.put(info.getServerName(), proxyServer);
@@ -77,41 +79,8 @@ public class InnerCoreProxy extends Plugin {
         }
 
         // get information from server
-        try {
-            final InnerCoreProxyServer server = this.servers.get(this.servers.keySet().iterator().next()).clone();
-            final SessionHandler handler = new SessionHandler();
-
-            server.addHandler((connection, packet) -> {
-                if (packet instanceof ResponsePacket response) {
-                    this.serverInfo = response;
-
-                    this.serverResponse = NetworkUtil.buildPacket("system.server_detection", new SeverDetectionJson(
-                            response.isServer(),
-                            response.getPortSever(),
-                            response.getBiomes(),
-                            response.isSocketEnabled()
-                    ));
-                    this.idMap = NetworkUtil.buildPacket("system.id_map", response.getIdMap());
-
-                    server.stop();
-                }
-            });
-
-            server.addHandler(connection -> {
-                connection.sendPacket(new RequestPacket());
-            });
-
-            this.getProxy().getEventManager().subscribe(ServerConnectedEvent.class, handler::onConnectedServer);
-            this.getProxy().getEventManager().subscribe(InnerCoreReceivePacketEvent.class, handler::onReceivePacket);
-            this.getProxy().getEventManager().subscribe(PlayerDisconnectedEvent.class, handler::onQuit);
-
-            this.getProxy().getLogger().info("Request server information, please turn on the server");
-
-            server.start();
-            server.getHandlerConnectionServers().clear();
-            server.getHandlers().clear();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        while (!getInformation()) {
+            Thread.yield();
         }
 
         servers.forEach((name, server) -> {
@@ -125,5 +94,55 @@ public class InnerCoreProxy extends Plugin {
                throw new RuntimeException("Failed to start server " + name);
            }).start();
         });
+    }
+
+    private boolean getInformation() {
+        try {
+            final InnerCoreProxyServer server = this.servers.get(this.servers.keySet().iterator().next()).clone();
+            final SessionHandler handler = new SessionHandler();
+
+            AtomicBoolean result = new AtomicBoolean(false);
+
+            server.addHandler((connection, packet) -> {
+                if (packet instanceof ResponsePacket response) {
+                    this.serverInfo = response;
+
+                    this.serverResponse = NetworkUtil.buildPacket("system.server_detection", new SeverDetectionJson(
+                            response.isServer(),
+                            response.getPortSever(),
+                            response.getBiomes(),
+                            response.isSocketEnabled()
+                    ));
+                    this.idMap = NetworkUtil.buildPacket("system.id_map", response.getIdMap());
+
+                    result.set(true);
+                    server.stop();
+                }
+            });
+
+            server.addHandler(connection -> {
+                connection.sendPacket(new RequestPacket());
+            });
+
+            this.getProxy().getEventManager().subscribe(ServerConnectedEvent.class, handler::onConnectedServer);
+            this.getProxy().getEventManager().subscribe(InnerCoreReceivePacketEvent.class, handler::onReceivePacket);
+            this.getProxy().getEventManager().subscribe(PlayerDisconnectedEvent.class, handler::onQuit);
+
+            this.getProxy().getLogger().info("Request server information, please turn on the server");
+            new Thread(() -> {
+                try {
+                    Thread.sleep(1000);
+                } catch (Exception ignored) {}
+                server.stop();
+            }).start();
+
+            server.start();
+            server.getHandlerConnectionServers().clear();
+            server.getHandlers().clear();
+
+            return result.get();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
