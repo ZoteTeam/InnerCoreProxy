@@ -1,7 +1,5 @@
-# default for server.properties
-# ip: localhost
-port: 19134
-token: test
+server-id: ""
 
-timeout: 1000
-period: 100
+nats:
+  url: ""
+  token: ""

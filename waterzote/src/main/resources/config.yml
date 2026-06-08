@@ -1,4 +1,8 @@
-lobby1:
-  ip: localhost
-  port: 19134
-  token: test
+nats:
+  url: ""
+  token: ""
+
+pack:
+  name: "Inner Core"
+  version-name: "any"
+  version-code: -1

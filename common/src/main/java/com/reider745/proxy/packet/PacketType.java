@@ -5,7 +5,6 @@ public enum PacketType {
     Response,
     Connect,
 
-    AuthServer,
-    PingActiveProxy,
-    PongActiveProxy,;
+    RequestServer,
+    ResponseServer;
 }

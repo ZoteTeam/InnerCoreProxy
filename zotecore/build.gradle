@@ -9,12 +9,15 @@ version = '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
-    maven { url 'https://jitpack.io' }
+    maven {
+        name = "innercoreReleases"
+        url = uri("https://maven.inner-core.org/releases")
+    }
 }
 
 dependencies {
     implementation(project(":common"))
-    compileOnly 'com.github.Reider745:ZoteCoreLoader:beta-1.0.0'
+    compileOnly("org.innercore.zotecoreloader:ZoteCoreLoader:beta-1.1.1")
 }
 
 

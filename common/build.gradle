@@ -7,6 +7,10 @@ version = '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
+
+    maven {
+        url = uri("https://repo1.maven.org/maven2/")
+    }
 }
 
 dependencies {
@@ -17,4 +21,5 @@ dependencies {
     annotationProcessor("org.jetbrains:annotations:26.0.2-1")
 
     implementation("fastutil:fastutil:5.0.9")
+    implementation("io.nats:jnats:2.25.3")
 }

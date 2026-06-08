@@ -40,12 +40,12 @@ public class InnerCoreSession {
     public InnerCoreSession(BedrockSession session) {
         this.session = session;
 
-        var info = InnerCoreProxy.getInstance().getServerInfo();
+        var info = InnerCoreProxy.getInstance();
 
         initializations.put("system.inner_core_build", (data) -> {
             final JsonObject json = GSON.fromJson(data, JsonObject.class);
 
-            if (!info.getVersionName().equals("any") && json.get("versionCode").getAsInt() != info.getVersionCode()) {
+            if (!info.getVersionName().equals("any") && json.get("versionCode").getAsInt() != info.getVersion()) {
                 throw new RuntimeException("not support inner core version, please install: " + info.getPackName() + " " + info.getVersionName());
             }
 
@@ -122,7 +122,7 @@ public class InnerCoreSession {
             player.disconnect("initializations failed " + initializations.keySet());
             return;
         }
-        InnerCoreProxy.getInstance().getServers().get(info.getServerName()).getServerConnection().sendPacket(new ConnectPlayerPacket(player.getName()));
+        InnerCoreProxy.getInstance().getNatsHelper().publish("server.connection." + info.getServerName(), new ConnectPlayerPacket(player.getName()));
     }
 
     public void disconnect(String reason) {

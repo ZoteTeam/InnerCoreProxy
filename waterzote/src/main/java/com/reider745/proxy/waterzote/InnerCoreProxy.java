@@ -1,46 +1,54 @@
 package com.reider745.proxy.waterzote;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
 import com.reider745.proxy.data.ModInfo;
-import com.reider745.proxy.network.InnerCoreProxyServer;
-import com.reider745.proxy.network.Side;
+import com.reider745.proxy.network.NatsHelper;
 import com.reider745.proxy.packet.impl.RequestPacket;
 import com.reider745.proxy.packet.impl.ResponsePacket;
 import com.reider745.proxy.waterzote.json.SeverDetectionJson;
 import com.reider745.proxy.waterzote.listener.SessionHandler;
 import com.reider745.proxy.waterzote.util.NetworkUtil;
 import dev.waterdog.waterdogpe.event.defaults.*;
-import dev.waterdog.waterdogpe.network.serverinfo.ServerInfo;
-import dev.waterdog.waterdogpe.network.serverinfo.ServerInfoType;
 import dev.waterdog.waterdogpe.plugin.Plugin;
+import dev.waterdog.waterdogpe.utils.config.Configuration;
 import lombok.Getter;
 import org.cloudburstmc.protocol.bedrock.codec.v422.packet.InnerCorePacket;
 
-import java.net.InetAddress;
+import java.io.File;
+import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Getter
 public class InnerCoreProxy extends Plugin {
+    private static final Gson GSON = new Gson();
     @Getter
     private static InnerCoreProxy instance;
 
     private final InnerCorePacket pong = NetworkUtil.buildPacket("system.native_pong", "");
     private final InnerCorePacket clientAwaitingInit = NetworkUtil.buildPacket("system.client_awaiting_init", "");
     private final InnerCorePacket clientConnectionAllowed = NetworkUtil.buildPacket("system.client_connection_allowed", "");
-    private final Map<String, InnerCoreProxyServer> servers = new HashMap<>();
 
     private InnerCorePacket serverResponse;
     private InnerCorePacket idMap;
-    private ResponsePacket serverInfo;
+    private List<ModInfo> mods;
+    private String packName;
+    private String versionName;
+    private int version;
 
+    private NatsHelper natsHelper;
 
     public boolean hasMod(String name, String version) {
         if (serverResponse == null) {
             return false;
         }
 
-        for (ModInfo mod : serverInfo.getMods()) {
+        for (ModInfo mod : mods) {
             if (mod.name().equals(name) && mod.version().equals(version)) {
                 return true;
             }
@@ -54,95 +62,43 @@ public class InnerCoreProxy extends Plugin {
 
     @Override
     public void onEnable() {
+        this.saveResource("config.yml");
+        this.loadConfig();
+
+        this.getProxy().getServers().forEach(server -> {
+            server.
+        })
+
         {
-            this.saveResource("config.yml");
-            this.loadConfig();
+            final Configuration config = this.getConfig();
 
-            for (ServerInfo info : this.getProxy().getServers()) {
-                if (info.getServerType() == ServerInfoType.BEDROCK) {
-                    try {
-                        final Map<String, Object> serverConfig = (Map<String, Object>) this.getConfig().get(info.getServerName());
-                        InetAddress address = serverConfig.containsKey("ip") ? InetAddress.getByName(serverConfig.get("ip").toString()) : info.getAddress().getAddress();
-                        InnerCoreProxyServer proxyServer = new InnerCoreProxyServer(
-                                Side.HANDLED,
-                                address,
-                                (int) serverConfig.get("port"),
-                                this.getLogger()::info
-                        );
-                        proxyServer.setToken(serverConfig.get("token").toString());
-                        this.servers.put(info.getServerName(), proxyServer);
-                    } catch (Exception ignored) {
-                        throw new RuntimeException("Failed to load config for " + info.getServerName());
-                    }
-                }
-            }
+            this.packName = config.getString("pack.name");
+            this.versionName = config.getString("pack.version-name");
+            this.version = config.getInt("pack.version-code");
+
+            this.natsHelper = new NatsHelper(config.getString("nats.url"), config.getString("nats.token"));
         }
 
-        // get information from server
-        while (!getInformation()) {
-            Thread.yield();
-        }
-
-        servers.forEach((name, server) -> {
-           new Thread(() -> {
-               try {
-                   getLogger().info("Starting server " + name);
-                   server.start();
-               } catch (Exception ignored) {
-                   getLogger().error("Failed to start server " + name, ignored);
-               }
-               throw new RuntimeException("Failed to start server " + name);
-           }).start();
-        });
-    }
-
-    private boolean getInformation() {
         try {
-            final InnerCoreProxyServer server = this.servers.get(this.servers.keySet().iterator().next()).clone();
-            final SessionHandler handler = new SessionHandler();
+            final Map<String, Integer> biomes = new HashMap<>();
 
-            AtomicBoolean result = new AtomicBoolean(false);
-
-            server.addHandler((connection, packet) -> {
-                if (packet instanceof ResponsePacket response) {
-                    this.serverInfo = response;
-
-                    this.serverResponse = NetworkUtil.buildPacket("system.server_detection", new SeverDetectionJson(
-                            response.isServer(),
-                            response.getPortSever(),
-                            response.getBiomes(),
-                            response.isSocketEnabled()
-                    ));
-                    this.idMap = NetworkUtil.buildPacket("system.id_map", response.getIdMap());
-
-                    result.set(true);
-                    server.stop();
-                }
+            new JsonParser().parse(Files.readString(new File(this.getDataFolder(), "biomes.json").toPath())).getAsJsonObject().entrySet().forEach(entry -> {
+               biomes.put(entry.getKey(), entry.getValue().getAsInt());
             });
 
-            server.addHandler(connection -> {
-                connection.sendPacket(new RequestPacket());
-            });
+            this.mods = GSON.fromJson(Files.readString(new File(this.getDataFolder(), "mods.json").toPath()), new TypeToken<ArrayList<ModInfo>>() {}.getType());
 
-            this.getProxy().getEventManager().subscribe(ServerConnectedEvent.class, handler::onConnectedServer);
-            this.getProxy().getEventManager().subscribe(InnerCoreReceivePacketEvent.class, handler::onReceivePacket);
-            this.getProxy().getEventManager().subscribe(PlayerDisconnectedEvent.class, handler::onQuit);
-
-            this.getProxy().getLogger().info("Request server information, please turn on the server");
-            new Thread(() -> {
-                try {
-                    Thread.sleep(1000);
-                } catch (Exception ignored) {}
-                server.stop();
-            }).start();
-
-            server.start();
-            server.getHandlerConnectionServers().clear();
-            server.getHandlers().clear();
-
-            return result.get();
+            this.serverResponse = NetworkUtil.buildPacket("system.server_detection", new SeverDetectionJson(true, 0, biomes, false));
+            this.idMap = NetworkUtil.buildPacket("system.id_map", new JsonParser().parse(Files.readString(new File(this.getDataFolder(), "id_map.json").toPath())));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+
+        final SessionHandler handler = new SessionHandler();
+
+        this.getProxy().getEventManager().subscribe(ServerConnectedEvent.class, handler::onConnectedServer);
+        this.getProxy().getEventManager().subscribe(InnerCoreReceivePacketEvent.class, handler::onReceivePacket);
+        this.getProxy().getEventManager().subscribe(PlayerDisconnectedEvent.class, handler::onQuit);
     }
+
 }

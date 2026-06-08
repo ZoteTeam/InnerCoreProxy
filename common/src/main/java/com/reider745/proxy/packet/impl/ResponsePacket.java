@@ -17,6 +17,8 @@ import java.util.Map;
 @Getter
 @Setter
 public class ResponsePacket extends Packet {
+    private String serverId = "";
+
     private boolean isServer = true;
     private int portSever = 19132;
     private boolean socketEnabled = false;
