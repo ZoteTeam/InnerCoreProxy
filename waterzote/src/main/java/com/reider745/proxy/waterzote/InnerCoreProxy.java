@@ -65,10 +65,6 @@ public class InnerCoreProxy extends Plugin {
         this.saveResource("config.yml");
         this.loadConfig();
 
-        this.getProxy().getServers().forEach(server -> {
-            server.
-        })
-
         {
             final Configuration config = this.getConfig();
 
