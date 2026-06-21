@@ -5,6 +5,7 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.reider745.proxy.data.ModInfo;
 import com.reider745.proxy.network.NatsHelper;
+import com.reider745.proxy.network.ServerList;
 import com.reider745.proxy.packet.impl.RequestPacket;
 import com.reider745.proxy.packet.impl.ResponsePacket;
 import com.reider745.proxy.waterzote.json.SeverDetectionJson;
@@ -40,6 +41,7 @@ public class InnerCoreProxy extends Plugin {
     private String packName;
     private String versionName;
     private int version;
+    private ServerList serverList;
 
     private NatsHelper natsHelper;
 
@@ -95,6 +97,10 @@ public class InnerCoreProxy extends Plugin {
         this.getProxy().getEventManager().subscribe(ServerConnectedEvent.class, handler::onConnectedServer);
         this.getProxy().getEventManager().subscribe(InnerCoreReceivePacketEvent.class, handler::onReceivePacket);
         this.getProxy().getEventManager().subscribe(PlayerDisconnectedEvent.class, handler::onQuit);
+
+
+        this.serverList = new ServerList(natsHelper);
+        this.getProxy().getScheduler().scheduleRepeating(serverList::onUpdate, 60, true);
     }
 
 }

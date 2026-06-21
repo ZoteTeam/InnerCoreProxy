@@ -13,13 +13,13 @@ public class ResponseSeverPacket extends Packet {
     private final String serverId;
 
     public ResponseSeverPacket(DataInputStream dis) throws IOException {
-        super(PacketType.Response);
+        super(PacketType.ResponseServer);
 
         this.serverId = dis.readUTF();
     }
 
     public ResponseSeverPacket(String serverId) {
-        super(PacketType.Response);
+        super(PacketType.ResponseServer);
 
         this.serverId = serverId;
     }

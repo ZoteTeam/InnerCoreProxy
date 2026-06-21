@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.reider745'
-version = '1.0-SNAPSHOT'
+version = '1.1-SNAPSHOT'
 
 repositories {
     mavenCentral()
@@ -22,4 +22,11 @@ dependencies {
 
     implementation("fastutil:fastutil:5.0.9")
     implementation("io.nats:jnats:2.25.3")
+
+    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

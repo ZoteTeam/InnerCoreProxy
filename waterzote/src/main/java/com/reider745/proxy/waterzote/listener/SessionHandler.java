@@ -37,7 +37,7 @@ public class SessionHandler {
     public void onQuit(PlayerDisconnectedEvent event) {
         final ProxiedPlayer player = event.getPlayer();
         if(player != null) {
-            sessions.remove(player.getConnection()).disconnect("quit");
+            sessions.remove(player.getConnection()).disconnect(event.getReason());
         }
     }
 }

@@ -1,11 +1,17 @@
 package com.reider745.proxy.zotecore;
 
+import cn.nukkit.Server;
+import cn.nukkit.event.EventHandler;
+import cn.nukkit.event.Listener;
+import cn.nukkit.event.player.PlayerPreLoginEvent;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.ConfigSection;
 import com.reider745.InnerCoreServer;
 import com.reider745.api.ReflectHelper;
+import com.reider745.hooks.entity.PlayerHooks;
 import com.reider745.proxy.data.ModInfo;
 import com.reider745.proxy.network.NatsHelper;
+import com.reider745.proxy.network.ServerList;
 import com.reider745.proxy.packet.impl.ConnectPlayerPacket;
 import com.reider745.proxy.packet.impl.ResponsePacket;
 import com.reider745.proxy.zotecore.common.DumpServerInfoCommand;
@@ -16,15 +22,23 @@ import com.zhekasmirnov.apparatus.multiplayer.mod.IdConversionMap;
 import com.zhekasmirnov.apparatus.multiplayer.mod.MultiplayerModList;
 import com.zhekasmirnov.apparatus.multiplayer.server.ConnectedClient;
 import com.zhekasmirnov.innercore.api.biomes.CustomBiome;
+import lombok.Getter;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Getter
 public class InnerCoreProxy extends PluginBase {
+    @Getter
+    public static InnerCoreProxy instance;
+
+    private ServerList serverList;
+
     @Override
     public void onLoad() {
+        this.instance = this;
         this.saveDefaultConfig();
     }
 
@@ -81,10 +95,11 @@ public class InnerCoreProxy extends PluginBase {
             }
         });
 
-
         final String serverId = this.getConfig().getString("server-id", "");
 
         response.setServerId(serverId);
+        response.setPort(Server.getInstance().getPort());
+        response.setIp(this.getConfig().getString("server-ip"));
 
         if (serverId.isEmpty()) throw new RuntimeException("server-id is empty");
 
@@ -98,5 +113,8 @@ public class InnerCoreProxy extends PluginBase {
         natsHelper.setHandler("server.request." + serverId, packet -> {
             natsHelper.publish("server.response", response);
         });
+
+        this.serverList = new ServerList(serverId, natsHelper);
+        this.getServer().getScheduler().scheduleRepeatingTask(this, serverList::onUpdate, 60);
     }
 }

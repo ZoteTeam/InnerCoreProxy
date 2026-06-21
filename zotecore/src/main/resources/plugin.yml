@@ -1,5 +1,5 @@
 name: "InnerCoreProxy"
-version: "1.0.0"
+version: "1.1"
 author: "Reider745"
 api: ["1.0.0"]
 main: com.reider745.proxy.zotecore.InnerCoreProxy

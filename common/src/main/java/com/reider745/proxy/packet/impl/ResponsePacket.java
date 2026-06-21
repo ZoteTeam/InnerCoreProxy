@@ -17,6 +17,8 @@ import java.util.Map;
 @Getter
 @Setter
 public class ResponsePacket extends Packet {
+    private int port;
+    private String ip;
     private String serverId = "";
 
     private boolean isServer = true;
@@ -57,6 +59,10 @@ public class ResponsePacket extends Packet {
         for (int i = 0; i < size; i++) {
             idMap.put(is.readUTF(), is.readInt());
         }
+
+        port = is.readInt();
+        serverId = is.readUTF();
+        ip = is.readUTF();
     }
 
     public ResponsePacket() {
@@ -94,5 +100,9 @@ public class ResponsePacket extends Packet {
             out.writeUTF(entry.getKey());
             out.writeInt(entry.getValue());
         }
+
+        out.writeInt(port);
+        out.writeUTF(serverId);
+        out.writeUTF(ip);
     }
 }

@@ -9,7 +9,7 @@ import java.io.IOException;
 
 public class RequestServerPacket extends Packet {
     public RequestServerPacket() {
-        super(PacketType.Request);
+        super(PacketType.RequestServer);
     }
 
     public RequestServerPacket(DataInputStream dis) {

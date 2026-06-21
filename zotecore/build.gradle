@@ -1,11 +1,12 @@
 plugins {
     id 'java'
     id("com.gradleup.shadow") version "9.1.0"
+    id 'maven-publish'
 }
 
 
-group = 'com.reider745'
-version = '1.0-SNAPSHOT'
+group = 'com.reider745.proxy.zotecore'
+version = '1.1-SNAPSHOT'
 
 repositories {
     mavenCentral()
@@ -27,4 +28,25 @@ tasks.build {
 
 tasks.jar {
     archiveFileName.set("${project.name}-${project.version}.jar")
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            artifact(shadowJar) {
+                classifier = null
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = "innerCoreReposiliteReleases"
+            url = uri("https://maven.inner-core.org/releases")
+            credentials {
+                username = findProperty('innercoreUsername')?.toString() ?: System.getenv('MAVEN_USERNAME')
+                password = findProperty('innercorePassword')?.toString() ?: System.getenv('MAVEN_PASSWORD')
+            }
+        }
+    }
 }
